@@ -58,4 +58,4 @@ Appka je navržená tak, aby se chovala jako rychlý člověk, ne jako útok:
 - `samet_booker/planner.py`: výběr nejlepšího platného programu
 - `samet_booker/demo.py`, `web/demo_*.html`: zkušební stránka
 - `web/index.html`: ovládací panel
-- Exe se staví GitHub Actions po pushnutí tagu `v*`.
+- Exe se staví GitHub Actions při vydání nové verze (Release) a přiloží se k ní. Ručně jde spustit v záložce Actions.
