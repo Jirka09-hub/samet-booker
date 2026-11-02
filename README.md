@@ -42,7 +42,7 @@ Volba **Jen nanečisto** na ostrém webu akce vybere, ale neodešle.
 
 Appka je navržená tak, aby se chovala jako rychlý člověk, ne jako útok:
 
-- v čas otevření stránku načte jednou, a pokud ještě není otevřeno, zkouší to jen každé 1–5 s a nejdéle 3 minuty,
+- kolem času otevření stránku obnovuje: 2 s a 0,7 s před, přesně v čas otevření, prvních 5 s zhruba každých 0,75 s, pak každé 2 s a od 30. sekundy každých 5 s, nejdéle 3 minuty. Jakmile je otevřeno, přestane obnovovat a hned rezervuje,
 - program odešle jedním kliknutím, opakuje jen když web ohlásí chybu,
 - rezervuje jen pro účet, který je v Chromu přihlášený.
 

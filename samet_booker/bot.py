@@ -437,7 +437,10 @@ class Bot:
 
         # Web si stav sám obnovuje jen jednou za 90 s, proto v čas otevření stránku načteme znovu.
         self.set_status(phase="watching")
-        schedule = [0.05, 1.0, 2.5, 4.5] + [4.5 + 2 * k for k in range(1, 13)] + [30 + 5 * k for k in range(1, 31)]
+        # Obnovování kolem času otevření: 2× těsně před (kdyby škola otevřela o chvilku dřív),
+        # v čas otevření, pak prvních 5 s zhruba každých 0,75 s, do 30 s každé 2 s a do 3 min každých 5 s.
+        schedule = ([-2.0, -0.7, 0.05] + [0.05 + 0.75 * k for k in range(1, 7)]
+                    + [4.5 + 2 * k for k in range(1, 13)] + [30 + 5 * k for k in range(1, 31)])
         for k, delay in enumerate(schedule):
             self._sleep_until(target + delay)
             try:
