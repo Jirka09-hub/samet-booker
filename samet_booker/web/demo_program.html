@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8"><title>DEMO GymBooking</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#fff;color:#111}
+header{border-bottom:1px solid #ddd;padding:12px 24px;display:flex;gap:16px;align-items:center}
+header b{font-family:serif}
+nav a{margin-right:12px;color:#111;text-decoration:none;font-size:14px}
+.banner{background:#fde68a;padding:8px 24px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;padding:24px;max-width:1000px;margin:auto}
+.card{border:1px solid #ddd;border-radius:12px;padding:14px}
+.meta{color:#666;font-size:13px}
+h3{margin:4px 0;font-size:16px}
+</style></head><body>
+<div class="banner">ZKUŠEBNÍ STRÁNKA aplikace SAMET Booker. Nic se tu doopravdy nerezervuje.</div>
+<header><b>gymbooking (demo)</b><nav><a href="/demo/">Program</a><a href="/demo/samet">Bloková rezervace</a><a href="/demo/samet">Moje vstupenky</a></nav></header>
+<div class="grid" id="grid"></div>
+<script>
+fetch('/demo/api/program').then(r => r.json()).then(cards => {
+  const g = document.getElementById('grid');
+  for (const c of cards) {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = `<p class="meta">11. 11. 2026 v ${c.cas} · ${c.delka} min</p><h3></h3><p class="meta"></p><p class="meta">Volných míst: ${c.kapacita}</p>`;
+    d.querySelector('h3').textContent = c.nazev;
+    d.querySelectorAll('.meta')[1].textContent = c.mistnost;
+    g.appendChild(d);
+  }
+});
+</script></body></html>

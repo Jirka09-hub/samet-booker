@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8"><title>DEMO Bloková rezervace</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#fff;color:#111}
+header{border-bottom:1px solid #ddd;padding:12px 24px;display:flex;gap:16px;align-items:center}
+header b{font-family:serif}
+nav a{margin-right:12px;color:#111;text-decoration:none;font-size:14px}
+.banner{background:#fde68a;padding:8px 24px;font-size:14px}
+main{max-width:960px;margin:auto;padding:24px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+[data-testid=samet-option]{border:1px solid #ddd;border-radius:8px;padding:10px}
+[data-testid=samet-option][data-selected=true]{border-color:#c8323c;box-shadow:0 0 0 2px #c8323c}
+[data-testid=samet-option][data-disabled=true]{opacity:.6}
+button[data-testid=samet-pick]{all:unset;cursor:pointer;display:block;width:100%}
+button[data-testid=samet-pick]:disabled{cursor:not-allowed}
+.font-semibold{font-weight:600;display:block}
+.muted{color:#666;font-size:12px}
+section.half{border:1px solid #ddd;border-radius:12px;padding:12px;margin-bottom:16px}
+[data-testid=samet-bar]{position:sticky;bottom:0;background:#fff;border-top:1px solid #ddd;padding:12px;display:flex;gap:12px;align-items:center}
+[data-testid=samet-submit]{padding:10px 16px;background:#c8323c;color:#fff;border:0;border-radius:8px}
+[data-testid=samet-submit]:disabled{opacity:.4}
+.toasts{position:fixed;bottom:16px;right:16px}
+[data-sonner-toast]{background:#111;color:#fff;padding:10px 14px;border-radius:8px;margin-top:6px}
+</style></head><body>
+<div class="banner">ZKUŠEBNÍ STRÁNKA aplikace SAMET Booker. Nic se tu doopravdy nerezervuje.</div>
+<header><b>gymbooking (demo)</b><nav><a href="/demo/">Program</a><a href="/demo/samet">Bloková rezervace</a></nav></header>
+<main><div data-testid="samet-page"><h1>Samet 2026 (demo)</h1>
+<div id="root"><div data-testid="samet-content" data-state="loading">Načítám…</div></div></div></main>
+<div class="toasts" id="toasts"></div>
+<script>
+const NAMES = {A:'1. hodina',B:'2. hodina',C:'3. hodina',D:'4. hodina',AB:'1. + 2. hodina',CD:'3. + 4. hodina',ODPO:'Odpoledne'};
+const COVER = {A:['A'],B:['B'],C:['C'],D:['D'],AB:['A','B'],CD:['C','D'],ODPO:['ODPO']};
+const VALID = ['A+B+C+D','AB+C+D','A+B+CD','AB+CD'];
+let data, sel = [], err = null, saving = false;
+const toast = (text, type) => { const t = document.createElement('div'); t.setAttribute('data-sonner-toast',''); t.setAttribute('data-type', type); t.textContent = text; document.getElementById('toasts').appendChild(t); setTimeout(() => t.remove(), 6000); };
+function validate(items) {
+  if (!items.length) return 'Vyberte prosím program.';
+  const bl = new Set(items.map(t => t.blok));
+  const ak = new Set(items.map(t => t.akceId));
+  if (ak.size !== items.length) return 'Stejnou akci nelze v programu vybrat dvakrát.';
+  const combo = ['A','AB','B','C','CD','D'].filter(b => bl.has(b)).join('+');
+  if (!VALID.includes(combo)) return 'Dopolední program musí beze zbytku pokrýt bloky A, B, C a D.';
+  const odpo = items.filter(t => t.blok === 'ODPO').length;
+  if (odpo !== 1) return 'Vyberte právě jednu odpolední akci.';
+  return null;
+}
+function reason(t, items) {
+  if (items.some(x => x.id === t.id)) return null;
+  if (!data.vyber.includes(t.id) && t.kapacita - t.obsazeno <= 0) return 'Obsazeno';
+  const same = items.find(x => x.akceId === t.akceId && x.id !== t.id); if (same) return `Už máte vybráno (blok ${same.blok})`;
+  for (const x of items) if (x.blok !== t.blok && COVER[x.blok].some(c => COVER[t.blok].includes(c))) return `Kryje se s akcí „${x.nazev}“`;
+  return null;
+}
+function render() {
+  const root = document.getElementById('root');
+  if (!data.terminy.length) { root.innerHTML = `<div data-testid="samet-content" data-state="ready" data-faze="${data.faze}"><p>Nabídka programu zatím nebyla zveřejněna.</p><p class="muted">Demo se otevře v ${new Date(data.openAt*1000).toLocaleTimeString('cs-CZ')} (obnov stránku).</p></div>`; return; }
+  const byId = new Map(data.terminy.map(t => [t.id, t]));
+  const items = sel.map(i => byId.get(i)).filter(Boolean);
+  const verr = validate(items);
+  const changed = sel.length !== data.vyber.length || sel.some(i => !data.vyber.includes(i));
+  const covered = new Set(items.flatMap(t => COVER[t.blok]).filter(b => b !== 'ODPO'));
+  const c = document.createElement('div'); c.setAttribute('data-testid','samet-content'); c.setAttribute('data-state','ready'); c.setAttribute('data-faze', data.faze);
+  const picker = document.createElement('div'); picker.setAttribute('data-testid','samet-picker'); c.appendChild(picker);
+  if (data.vyber.length) {
+    const s = document.createElement('section'); s.setAttribute('data-testid','samet-saved'); s.innerHTML = '<h2>Váš program</h2>';
+    for (const i of data.vyber) { const li = document.createElement('div'); li.setAttribute('data-testid','samet-saved-item'); li.textContent = byId.get(i).nazev + ' · ' + NAMES[byId.get(i).blok]; s.appendChild(li); }
+    picker.appendChild(s);
+  }
+  const groups = [['1. a 2. hodina',['A','B','AB']],['3. a 4. hodina',['C','D','CD']],['Odpoledne',['ODPO']]];
+  for (const [title, bloks] of groups) {
+    const sec = document.createElement('section'); sec.className = 'half'; sec.innerHTML = `<h3>${title}</h3>`;
+    for (const b of bloks) {
+      const ts = data.terminy.filter(t => t.blok === b); if (!ts.length) continue;
+      const bd = document.createElement('div'); bd.setAttribute('data-testid', 'samet-block-' + b); bd.innerHTML = `<h4>${NAMES[b]}</h4>`;
+      const g = document.createElement('div'); g.className = 'grid';
+      for (const t of ts) {
+        const selected = sel.includes(t.id), r = reason(t, items), dis = !!r && !selected, free = Math.max(0, t.kapacita - t.obsazeno);
+        const o = document.createElement('div'); o.setAttribute('data-testid','samet-option'); o.setAttribute('data-termin', t.id); o.setAttribute('data-selected', selected); o.setAttribute('data-disabled', dis);
+        const btn = document.createElement('button'); btn.type = 'button'; btn.setAttribute('data-testid','samet-pick'); btn.setAttribute('aria-pressed', selected); btn.disabled = dis;
+        btn.innerHTML = `<span><span class="font-semibold"></span><span class="muted">${t.mistnost}</span></span>`; btn.querySelector('.font-semibold').textContent = t.nazev;
+        btn.onclick = () => { err = null; sel = sel.includes(t.id) ? sel.filter(x => x !== t.id) : [...sel.filter(x => byId.get(x).blok !== t.blok), t.id]; render(); };
+        o.appendChild(btn);
+        const f = document.createElement('span'); f.setAttribute('data-testid','samet-free'); f.className = 'muted'; f.textContent = free === 0 ? 'Obsazeno' : `Volno ${free} z ${t.kapacita}`; o.appendChild(f);
+        if (r && r !== 'Obsazeno' && !selected) { const rs = document.createElement('span'); rs.className = 'muted'; rs.setAttribute('data-testid','samet-reason'); rs.textContent = ' ' + r; o.appendChild(rs); }
+        g.appendChild(o);
+      }
+      bd.appendChild(g); sec.appendChild(bd);
+    }
+    picker.appendChild(sec);
+  }
+  const bar = document.createElement('div'); bar.setAttribute('data-testid','samet-bar');
+  const info = document.createElement('div'); info.style.flex = '1';
+  info.innerHTML = `<p data-testid="samet-progress">Dopoledne ${covered.size} ze 4 hodin · Odpoledne: ${items.some(t => t.blok === 'ODPO') ? 'vybráno' : 'nevybráno'}</p>`;
+  if (err) { const e = document.createElement('p'); e.setAttribute('data-testid','samet-error'); e.setAttribute('role','alert'); e.style.color = '#c8323c'; e.textContent = err; info.appendChild(e); }
+  else if (verr && items.length) { const e = document.createElement('p'); e.className = 'muted'; e.textContent = verr; info.appendChild(e); }
+  const sub = document.createElement('button'); sub.setAttribute('data-testid','samet-submit'); sub.disabled = saving || !!verr || !changed;
+  sub.textContent = saving ? 'Ukládám…' : (data.vyber.length ? 'Uložit změny' : 'Odeslat program');
+  sub.onclick = async () => {
+    saving = true; err = null; render();
+    const r = await fetch('/demo/api/save', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({terminIds: sel})}).then(r => r.json());
+    saving = false;
+    if (r.ok) { toast(r.zmeneno ? 'Program uložen. Vstupenky s QR kódem dostanete e-mailem během několika minut.' : 'Program beze změny.', 'success'); data.vyber = r.vyber; render(); }
+    else { err = r.message; toast(r.message, 'error'); await load(); }
+  };
+  bar.appendChild(info); bar.appendChild(sub); picker.appendChild(bar);
+  root.innerHTML = ''; root.appendChild(c);
+}
+async function load() { data = await fetch('/demo/api/state').then(r => r.json()); if (!sel.length || !saving) sel = [...data.vyber]; render(); }
+setTimeout(load, 300);
+</script></body></html>

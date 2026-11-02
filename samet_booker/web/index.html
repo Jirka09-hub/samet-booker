@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAMET Booker</title>
+<style>
+  :root {
+    --bg: #f6f4f2; --card: #ffffff; --ink: #1c1917; --muted: #78716c; --line: #e7e5e4;
+    --accent: #c8323c; --accent-ink: #ffffff; --accent-soft: #fbe9ea;
+    --ok: #15803d; --warn: #b45309; --err: #b91c1c; --info: #44403c;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141211; --card: #1f1c1a; --ink: #f5f5f4; --muted: #a8a29e; --line: #34302d;
+      --accent: #e5484d; --accent-soft: #3a1d1f; --ok: #4ade80; --warn: #fbbf24; --err: #f87171; --info: #d6d3d1;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { background: var(--accent); color: var(--accent-ink); padding: 18px 20px 16px; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+  header p { margin: 2px 0 0; opacity: .85; font-size: 13px; }
+  main { padding: 14px; display: grid; gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+         display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+           padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--line); color: var(--muted); }
+  .chip.on { background: #dcfce7; color: #166534; }
+  .block { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+  .block:first-of-type { border-top: 0; }
+  .block .time { font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .block .time button { padding: 2px 8px; font-size: 12px; }
+  .pick { display: grid; grid-template-columns: 84px 1fr; gap: 6px 8px; align-items: center; margin-top: 6px; }
+  .pick label { color: var(--muted); font-size: 12px; }
+  select, input[type=text], input[type=datetime-local] {
+    font: inherit; width: 100%; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); }
+  .countdown { font-size: 34px; font-weight: 700; text-align: center; letter-spacing: 1px;
+               font-variant-numeric: tabular-nums; margin: 6px 0 2px; }
+  .phase { text-align: center; }
+  .log { background: var(--bg); border-radius: 10px; padding: 8px 10px; height: 220px; overflow: auto;
+         font: 12px/1.5 Consolas, ui-monospace, monospace; }
+  .log div { white-space: pre-wrap; }
+  .l-ok { color: var(--ok); } .l-warn { color: var(--warn); } .l-err { color: var(--err); font-weight: 600; } .l-info { color: var(--info); }
+  .toggle { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .half { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+  .half h3 { margin: 0 0 6px; font-size: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 4px; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 12px; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .slot { margin-top: 8px; }
+  .slot .name { font-weight: 600; font-size: 13px; }
+  .slot.dim { opacity: .65; }
+  .demo { border-style: dashed; }
+  .result { margin-top: 10px; padding: 10px; border-radius: 10px; text-align: center; font-weight: 600; }
+  .result.ok { background: #dcfce7; color: #166534; }
+  .result.err { background: #fee2e2; color: #991b1b; }
+  .demoOn header, body.demoOn header { background: #a16207; }
+  .empty { text-align: center; padding: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>SAMET Booker</h1>
+  <p>Automatické přihlášení na program Sametového festivalu</p>
+</header>
+<main>
+  <section class="card">
+    <h2><span class="num">1</span> Přihlášení <span id="chromeChip" class="chip">Chrome…</span></h2>
+    <p class="muted">V okně Chromu, které se otevřelo vedle, se přihlas <b>školním Google účtem</b>. Přihlášení si Chrome pamatuje, stačí to udělat jednou.</p>
+    <div class="row"><button id="btnSite">Ukázat web</button></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span> Co chci</h2>
+    <p class="muted">Web chce celé dopoledne (1. až 4. hodina, buď po hodinách, nebo dvouhodinovky) a jednu odpolední akci. U každé možnosti vyber 1. volbu a náhradníka. Appka pak v čas otevření poskládá nejlepší platný program z toho, co je volné.</p>
+    <div class="row" style="margin-bottom:6px">
+      <button id="btnCatalog">Načíst nabídku z webu</button>
+      <span class="muted" id="catInfo"></span>
+    </div>
+    <div id="halves"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span> Spuštění</h2>
+    <div class="pick"><label for="openAt">Otevření</label><input id="openAt" type="datetime-local" step="1"></div>
+    <label class="toggle"><input type="checkbox" id="fillAny"> Když nic z mého výběru nepůjde, vyber cokoli volného (ať nezůstanu bez programu)</label>
+    <label class="toggle"><input type="checkbox" id="dryRun"> Jen nanečisto (vybere, ale neodešle)</label>
+    <div class="countdown" id="countdown">--:--:--</div>
+    <div class="phase muted" id="phase">Připraveno</div>
+    <div class="result" id="result" style="display:none"></div>
+    <div class="row" style="justify-content:center;margin-top:10px">
+      <button id="btnProbe">Zkontrolovat stránku</button>
+      <button id="btnArm" class="primary">Spustit odpočet</button>
+      <button id="btnCancel" style="display:none">Zrušit</button>
+    </div>
+    <p class="muted" style="text-align:center;margin:10px 0 0">Nech PC zapnuté a Chrome otevřený. V čas otevření appka jednou načte stránku, vybere a odešle.</p>
+  </section>
+
+  <section class="card demo">
+    <h2>Zkouška nanečisto na demo stránce</h2>
+    <label class="toggle"><input type="checkbox" id="demo"> Používat zkušební demo stránku místo skutečného webu</label>
+    <p class="muted">Demo vypadá a funguje jako Bloková rezervace, jen běží u tebe v PC. Akce „Berlínská zeď“ v 1. hodině se v ní hned po otevření zaplní, takže uvidíš i náhradníka.</p>
+    <div class="row"><button id="btnDemoGo">Demo: otevřít za 1 minutu a spustit</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Záznam</h2>
+    <div class="log" id="log"></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const NAMES = { A: '1. hodina', B: '2. hodina', AB: '1. + 2. hodina (dvouhodinovka)', C: '3. hodina', D: '4. hodina', CD: '3. + 4. hodina (dvouhodinovka)', ODPO: 'Odpolední akce' };
+const HALVES = [
+  { id: 'p1', title: '1. a 2. hodina', single: ['A', 'B'], double: 'AB' },
+  { id: 'p2', title: '3. a 4. hodina', single: ['C', 'D'], double: 'CD' },
+];
+let S = { plan: {}, prefer: { p1: 'single', p2: 'single' }, catalog: [] };
+let since = 0, skew = 0, status = {}, busy = false, catKey = null, first = true;
+
+const api = (path, body) => fetch('/api/' + path, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {})
+}).then(r => r.json()).then(j => { if (!j.ok && j.error) addLog({ msg: j.error, level: 'warn', t: Date.now() / 1000 }); return j; });
+const save = () => api('settings', { plan: S.plan, prefer: S.prefer, open_at: S.open_at, dry_run: S.dry_run, fill_any: S.fill_any, demo: S.demo });
+
+function addLog(l) {
+  const d = document.createElement('div');
+  d.className = 'l-' + l.level; d.textContent = new Date(l.t * 1000).toLocaleTimeString('cs-CZ') + '  ' + l.msg;
+  const box = $('#log'); const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+  box.appendChild(d); if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+function slotSelect(slot, j) {
+  const sel = document.createElement('select');
+  sel.appendChild(new Option('— nic —', ''));
+  const mine = S.catalog.filter(e => e.blok === slot);
+  const seen = new Set();
+  for (const e of mine) {
+    if (seen.has(e.title)) continue; seen.add(e.title);
+    const extra = [e.location, e.free != null ? 'volno ' + e.free : ''].filter(Boolean).join(', ');
+    sel.appendChild(new Option(e.title + (extra ? ' (' + extra + ')' : ''), e.title));
+  }
+  const others = [...new Set(S.catalog.filter(e => e.blok !== slot).map(e => e.title))].filter(t => !seen.has(t));
+  if (others.length && !S.catalog.some(e => e.exact)) {
+    const g = document.createElement('optgroup'); g.label = 'Ostatní akce (kdyby byl blok odhadnutý špatně)';
+    others.sort((a, b) => a.localeCompare(b, 'cs')).forEach(t => g.appendChild(new Option(t, t)));
+    sel.appendChild(g);
+  }
+  const cur = (S.plan[slot] || [])[j] || '';
+  if (cur && ![...sel.options].some(o => o.value === cur)) sel.appendChild(new Option(cur + ' (ručně)', cur));
+  sel.value = cur;
+  sel.onchange = () => { S.plan[slot] = S.plan[slot] || ['', '']; S.plan[slot][j] = sel.value; save(); };
+  return sel;
+}
+
+function slotBlock(slot, dim) {
+  const d = document.createElement('div'); d.className = 'slot' + (dim ? ' dim' : '');
+  d.innerHTML = `<div class="name">${NAMES[slot]}${dim ? ' <span class="muted">(záloha)</span>' : ''}</div>`;
+  const g = document.createElement('div'); g.className = 'pick';
+  ['1. volba', 'Náhradník'].forEach((n, j) => { const l = document.createElement('label'); l.textContent = n; g.appendChild(l); g.appendChild(slotSelect(slot, j)); });
+  d.appendChild(g); return d;
+}
+
+function render() {
+  const box = $('#halves'); box.innerHTML = '';
+  const exact = S.catalog.some(e => e.exact);
+  $('#catInfo').textContent = S.catalog.length ? (exact ? `${S.catalog.length} termínů z Blokové rezervace` : `${S.catalog.length} akcí z Programu (bloky odhadnuté podle času)`) : 'Zatím nenačteno';
+  for (const h of HALVES) {
+    const sec = document.createElement('div'); sec.className = 'half';
+    sec.innerHTML = `<h3>${h.title}</h3>`;
+    const seg = document.createElement('div'); seg.className = 'seg';
+    [['single', 'Po hodinách'], ['double', 'Dvouhodinovka']].forEach(([v, label]) => {
+      const b = document.createElement('button'); b.textContent = label; b.className = (S.prefer[h.id] || 'single') === v ? 'on' : '';
+      b.onclick = () => { S.prefer[h.id] = v; save(); render(); };
+      seg.appendChild(b);
+    });
+    sec.appendChild(seg);
+    const pref = S.prefer[h.id] || 'single';
+    const main = pref === 'single' ? h.single : [h.double];
+    const backup = pref === 'single' ? [h.double] : h.single;
+    main.forEach(s => sec.appendChild(slotBlock(s, false)));
+    backup.forEach(s => sec.appendChild(slotBlock(s, true)));
+    box.appendChild(sec);
+  }
+  const od = document.createElement('div'); od.className = 'half'; od.innerHTML = '<h3>Odpoledne</h3>';
+  od.appendChild(slotBlock('ODPO', false)); box.appendChild(od);
+}
+
+$('#btnCatalog').onclick = () => api('catalog');
+$('#btnProbe').onclick = () => api('probe');
+$('#btnArm').onclick = () => {
+  if (!Object.values(S.plan).some(v => v.some(Boolean))) { alert('Nejdřív vyber akce.'); return; }
+  api('arm');
+};
+$('#btnCancel').onclick = () => api('cancel');
+$('#openAt').onchange = e => { S.open_at = e.target.value.length === 16 ? e.target.value + ':00' : e.target.value; save(); };
+$('#dryRun').onchange = e => { S.dry_run = e.target.checked; save(); };
+$('#fillAny').onchange = e => { S.fill_any = e.target.checked; save(); };
+$('#demo').onchange = e => { S.demo = e.target.checked; document.body.classList.toggle('demoOn', S.demo); save(); };
+$('#btnDemoGo').onclick = async () => {
+  const d = new Date(Date.now() + 60000); d.setMilliseconds(0);
+  const pad = n => String(n).padStart(2, '0');
+  S.open_at = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  S.demo = true; $('#demo').checked = true; document.body.classList.add('demoOn');
+  $('#openAt').value = S.open_at;
+  await save();
+  if (!Object.values(S.plan).some(v => v.some(Boolean))) { alert('Nejdřív načti nabídku (v demu) a vyber akce.'); return; }
+  api('arm');
+};
+
+const PHASES = { idle: 'Připraveno', armed: 'Čekám na otevření', watching: 'Načítám stránku v čas otevření…', booking: 'Rezervuji!' };
+function tick() {
+  ['#btnCatalog', '#btnProbe', '#btnArm', '#btnSite', '#btnDemoGo'].forEach(b => $(b).disabled = busy);
+  $('#btnCancel').style.display = busy ? '' : 'none';
+  $('#chromeChip').textContent = status.chrome ? 'Chrome připojen' : 'Chrome nepřipojen';
+  $('#chromeChip').className = 'chip' + (status.chrome ? ' on' : '');
+  let phase = PHASES[status.phase] || status.phase || '';
+  if (busy && status.phase === 'idle') phase = 'Pracuju…';
+  if (S.demo) phase += ' · DEMO';
+  $('#phase').textContent = phase;
+  const res = $('#result');
+  if (status.result && !busy) {
+    res.style.display = ''; res.className = 'result ' + status.result;
+    res.textContent = status.result === 'ok' ? (S.dry_run ? 'Nanečisto proběhlo, podívej se do záznamu.' : 'Hotovo! Program je uložený. Zkontroluj ho na webu.') : 'Nepovedlo se, mrkni do záznamu a zkus to ručně na webu.';
+  } else res.style.display = 'none';
+  const target = status.target || new Date(S.open_at).getTime() / 1000;
+  let left = target - (Date.now() / 1000 + skew);
+  const sign = left < 0 ? '+' : ''; left = Math.abs(left);
+  const h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60), s = Math.floor(left % 60);
+  $('#countdown').textContent = isNaN(left) ? '--:--:--' : sign + [h, m, s].map(x => String(x).padStart(2, '0')).join(':');
+}
+
+async function poll() {
+  try {
+    const r = await fetch('/api/state?since=' + since).then(r => r.json());
+    skew = r.now - Date.now() / 1000;
+    status = r.status; busy = !!status.busy;
+    for (const l of r.logs) { addLog(l); since = Math.max(since, l.t); }
+    const key = JSON.stringify(r.settings.catalog || []);
+    if (first || key !== catKey) {
+      if (first) {
+        S = { ...S, ...r.settings };
+        $('#openAt').value = (S.open_at || '').slice(0, 19);
+        $('#dryRun').checked = !!S.dry_run; $('#fillAny').checked = S.fill_any !== false; $('#demo').checked = !!S.demo;
+        document.body.classList.toggle('demoOn', !!S.demo);
+      } else S.catalog = r.settings.catalog || [];
+      catKey = key; first = false; render();
+    }
+  } catch (e) { status = {}; }
+  tick();
+}
+$('#btnSite').onclick = () => api('open_site');
+setInterval(poll, 500); setInterval(tick, 200); poll();
+</script>
+</body>
+</html>
