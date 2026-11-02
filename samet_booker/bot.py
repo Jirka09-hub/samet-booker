@@ -234,6 +234,21 @@ class Bot:
         self.log("Bloky zatím nejsou zveřejněné, beru akce z Programu a bloky odhadnu podle času.", "info")
         p.goto(self.base_url, wait_until="domcontentloaded")
         p.wait_for_timeout(2500)
+        # Program se zobrazuje po částech, rozbalíme ho celý tlačítkem „Zobrazit další akce“.
+        more = p.get_by_role("button", name=re.compile(r"zobrazit dal[šs][íi]", re.I))
+        clicks = 0
+        while clicks < 60:
+            try:
+                if more.count() == 0 or not more.first.is_visible():
+                    break
+                more.first.scroll_into_view_if_needed(timeout=3000)
+                more.first.click(timeout=3000)
+            except Exception:
+                break
+            clicks += 1
+            p.wait_for_timeout(700)
+        if clicks:
+            self.log(f"Rozbaleno celé Program ({clicks}× „Zobrazit další akce“).", "info")
         last = 0
         for _ in range(15):  # dorolovat, kdyby se program načítal postupně
             p.mouse.wheel(0, 4000)

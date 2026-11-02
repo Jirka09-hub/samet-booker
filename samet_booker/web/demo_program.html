@@ -14,15 +14,23 @@ h3{margin:4px 0;font-size:16px}
 <div class="banner">ZKUŠEBNÍ STRÁNKA aplikace SAMET Booker. Nic se tu doopravdy nerezervuje.</div>
 <header><b>gymbooking (demo)</b><nav><a href="/demo/">Program</a><a href="/demo/samet">Bloková rezervace</a><a href="/demo/samet">Moje vstupenky</a></nav></header>
 <div class="grid" id="grid"></div>
+<p style="text-align:center"><button id="more" type="button">Zobrazit další akce</button></p>
 <script>
+let shown = 6;
 fetch('/demo/api/program').then(r => r.json()).then(cards => {
-  const g = document.getElementById('grid');
-  for (const c of cards) {
+  const draw = () => {
+  const g = document.getElementById('grid'); g.innerHTML = '';
+  for (const c of cards.slice(0, shown)) {
     const d = document.createElement('div'); d.className = 'card';
     d.innerHTML = `<p class="meta">11. 11. 2026 v ${c.cas} · ${c.delka} min</p><h3></h3><p class="meta"></p><p class="meta">Volných míst: ${c.kapacita}</p>`;
     d.querySelector('h3').textContent = c.nazev;
     d.querySelectorAll('.meta')[1].textContent = c.mistnost;
     g.appendChild(d);
   }
+  const btn = document.getElementById('more');
+  btn.style.display = shown < cards.length ? '' : 'none';
+  };
+  document.getElementById('more').onclick = () => setTimeout(() => { shown += 6; draw(); }, 300);
+  draw();
 });
 </script></body></html>
