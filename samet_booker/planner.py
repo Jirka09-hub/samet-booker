@@ -7,7 +7,9 @@ Pravidla webu (Samet 2026):
 """
 from __future__ import annotations
 
+import difflib
 import itertools
+import re
 import unicodedata
 
 SLOTS = ["A", "B", "AB", "C", "D", "CD", "ODPO"]
@@ -22,6 +24,34 @@ FALLBACK_RANK = 10  # „cokoli volného“ je až za všemi tvými volbami
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFC", s or "")
     return " ".join(s.split()).casefold()
+
+
+def key(s: str) -> str:
+    """Název bez diakritiky, interpunkce a mezer, aby „...“ vs „…“ apod. nevadilo."""
+    s = unicodedata.normalize("NFKD", norm(s))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "", s)
+
+
+def similarity(a: str, b: str) -> float:
+    ka, kb = key(a), key(b)
+    if not ka or not kb:
+        return 0.0
+    if ka == kb:
+        return 1.0
+    if min(len(ka), len(kb)) >= 8 and (ka in kb or kb in ka):
+        return 0.95
+    return difflib.SequenceMatcher(None, ka, kb).ratio()
+
+
+def find(title: str, items: list[dict], threshold: float = 0.85) -> dict | None:
+    """Najde akci podle názvu, odolně vůči drobným rozdílům v zápisu."""
+    best, score = None, 0.0
+    for o in items:
+        sc = similarity(title, o["title"])
+        if sc > score:
+            best, score = o, sc
+    return best if score >= threshold else None
 
 
 # Nepreferovaná varianta (dvouhodinovka místo hodin nebo naopak) přijde na řadu
@@ -66,13 +96,10 @@ def best_program(options: list[dict], plan: dict, prefer: dict, need_odpo: bool,
         for rank, title in enumerate(plan.get(slot) or []):
             if not title:
                 continue
-            match = [o for o in by_slot[slot] if norm(o["title"]) == norm(title)]
-            if not match:
-                match = [o for o in by_slot[slot] if norm(title) in norm(o["title"])]
-            if not match:
+            o = find(title, by_slot[slot])
+            if not o:
                 notes.append(f"{SLOT_NAMES[slot]}: „{title}“ v nabídce není.")
                 continue
-            o = match[0]
             if not available(o):
                 notes.append(f"{SLOT_NAMES[slot]}: „{title}“ je obsazené.")
                 continue
@@ -92,7 +119,7 @@ def best_program(options: list[dict], plan: dict, prefer: dict, need_odpo: bool,
         # Stačí pár nejlepších kandidátů na slot, aby kombinací nebylo moc.
         pools = [cands[s][:6] for s in slots]
         for combo in itertools.product(*pools):
-            titles = [norm(o["title"]) for _, o in combo]
+            titles = [key(o["title"]) for _, o in combo]
             if len(set(titles)) != len(titles):
                 continue
             cost = sum(r for r, _ in combo) + structure_penalty(struct, prefer)

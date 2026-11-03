@@ -150,7 +150,7 @@ function slotSelect(slot, j) {
   const seen = new Set();
   for (const e of mine) {
     if (seen.has(e.title)) continue; seen.add(e.title);
-    const extra = [e.location, e.free != null ? 'volno ' + e.free : ''].filter(Boolean).join(', ');
+    const extra = [e.location, e.free != null ? 'volno ' + e.free : (e.capacity ? e.capacity + ' míst' : ''), e.note ? '⚠ ' + e.note : ''].filter(Boolean).join(', ');
     sel.appendChild(new Option(e.title + (extra ? ' (' + extra + ')' : ''), e.title));
   }
   const others = [...new Set(S.catalog.filter(e => e.blok !== slot).map(e => e.title))].filter(t => !seen.has(t));
@@ -177,7 +177,7 @@ function slotBlock(slot, dim) {
 function render() {
   const box = $('#halves'); box.innerHTML = '';
   const exact = S.catalog.some(e => e.exact);
-  $('#catInfo').textContent = S.catalog.length ? (exact ? `${S.catalog.length} termínů z Blokové rezervace` : `${S.catalog.length} akcí z Programu (bloky odhadnuté podle času)`) : 'Zatím nenačteno';
+  $('#catInfo').textContent = S.catalog.length ? (exact ? `${S.catalog.length} termínů z Blokové rezervace` : `${S.catalog.length} termínů z Programu, bloky podle programu školy`) : 'Zatím nenačteno';
   for (const h of HALVES) {
     const sec = document.createElement('div'); sec.className = 'half';
     sec.innerHTML = `<h3>${h.title}</h3>`;

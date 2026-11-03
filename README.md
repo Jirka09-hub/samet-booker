@@ -12,6 +12,15 @@ Vybereš si akce předem, u každé hodiny i náhradníka, a appka přesně v č
 - Když je tvoje 1. volba plná, použije náhradníka. Když nevyjde ani ten, zkusí dvouhodinovku (nebo naopak) a nakonec, pokud chceš, cokoli volného.
 - Když web při odeslání ohlásí, že se něco mezitím zaplnilo, appka načte aktuální obsazenost a zkusí to znovu (nejvýš 4×).
 
+## Pravidla Samet 2026 (podle [gympb.cz/samet](https://gympb.cz/samet/#prihlasovani))
+
+- Přihlašování: **od 3. 11. 19:00 do 6. 11. 16:00** na rezervace.gympb.cz.
+- Bloky: A 8:00, B 9:00, C 10:00, D 11:00 (po 45 min), dvouhodinovky AB 8:00–9:30 a CD 10:00–11:30, odpoledne ODPO 12:00–14:00 (jen vyšší gymnázium, vybírá se jeden workshop).
+- Dopoledne musí být pokryté: A+B+C+D, AB+C+D, A+B+CD nebo AB+CD. Stejnou akci nejde mít dvakrát.
+- Některé akce jsou jen pro němčináře nebo vyšší gymnázium, film Dalajlama stojí 80 Kč (strhne se z Bakalářů). Appka to u akcí ukazuje.
+
+Dokud web nezveřejní nabídku přímo v Blokové rezervaci, appka bere akce z Programu a bloky podle oficiálního programu školy (`samet_booker/program2026.py`). Jakmile nabídka na webu je, načte se odtamtud přesně.
+
 ## Instalace (Windows)
 
 **Možnost A, bez instalace Pythonu:** stáhni `SAMET-Booker.exe` ze stránky [Releases](../../releases) a spusť ho. Windows může ukázat varování SmartScreen („Neznámý vydavatel“), klikni na *Další informace → Přesto spustit*.

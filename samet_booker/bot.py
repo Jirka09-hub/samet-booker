@@ -14,7 +14,7 @@ from typing import Callable
 
 from playwright.sync_api import Page, sync_playwright
 
-from . import config, planner
+from . import config, planner, program2026
 
 # ---------------------------------------------------------------------------
 # JavaScript, který běží ve stránce
@@ -146,28 +146,64 @@ def server_offset(url: str) -> float:
 
 
 def guess_blocks(raw: list[dict]) -> list[dict]:
-    """Přiřadí akcím z Programu blok podle začátku a délky (odhad)."""
+    """Přiřadí akcím z Programu blok podle začátku a délky.
+
+    Časy bloků podle gympb.cz/samet: A 8:00, B 9:00, C 10:00, D 11:00 (45 min),
+    AB 8:00 a CD 10:00 (dvouhodinovky), ODPO od 12:00.
+    """
     if not raw:
         return []
     days = {}
     for e in raw:
         days[e["start"][:10]] = days.get(e["start"][:10], 0) + 1
     day = config.SAMET_DATE if config.SAMET_DATE in days else max(days, key=days.get)
-    evs = [e for e in raw if e["start"].startswith(day)]
-    morning = [e for e in evs if int(e["start"][11:13]) < 12]
-    singles = sorted({e["start"] for e in morning if (e.get("duration") or 45) <= 60})
     out = []
-    for e in evs:
+    for e in raw:
+        if not e["start"].startswith(day):
+            continue
         dur = e.get("duration") or 45
-        if int(e["start"][11:13]) >= 12:
+        hour = int(e["start"][11:13])
+        if hour >= 12:
             blok = "ODPO"
         elif dur > 60:
-            blok = "AB" if len(singles) < 3 or e["start"] < singles[2] else "CD"
+            blok = "AB" if hour < 10 else "CD"
         else:
-            idx = singles.index(e["start"])
-            blok = "ABCD"[min(idx, 3)]
+            blok = {8: "A", 9: "B", 10: "C", 11: "D"}.get(hour, "A" if hour < 8 else "D")
         out.append({"title": e["title"], "blok": blok, "start": e["start"], "duration": dur,
                     "location": e.get("location", ""), "exact": False})
+    return out
+
+
+def merge_with_school(raw: list[dict]) -> list[dict]:
+    """Spojí akce z Programu na rezervačním webu s oficiálním programem školy.
+
+    Název bereme z rezervačního webu (tak ho bude hledat i rezervace), bloky
+    z programu školy. Akce, které škola nemá, dostanou blok odhadem podle času.
+    """
+    school = program2026.EVENTS
+    out: list[dict] = []
+    used_school = set()
+    for e in guess_blocks(raw):
+        hit = None
+        for idx, (title, bloks, room, cap, note) in enumerate(school):
+            if planner.similarity(e["title"], title) >= 0.85:
+                hit = idx
+                break
+        if hit is None:
+            out.append(e)
+            continue
+        if hit in used_school:
+            continue
+        used_school.add(hit)
+        title, bloks, room, cap, note = school[hit]
+        for b in bloks:
+            out.append({"title": e["title"], "blok": b, "location": e.get("location") or room,
+                        "capacity": cap, "note": note, "exact": False, "source": "web+skola"})
+    for idx, ev in enumerate(school):
+        if idx not in used_school:
+            title, bloks, room, cap, note = ev
+            out.extend({"title": title, "blok": b, "location": room, "capacity": cap, "note": note,
+                        "exact": False, "source": "skola"} for b in bloks)
     return out
 
 
@@ -231,7 +267,7 @@ class Bot:
             self.log(f"Načteno {len(items)} termínů přímo z Blokové rezervace.", "ok")
             return items
         self.log(self.describe(st), "info")
-        self.log("Bloky zatím nejsou zveřejněné, beru akce z Programu a bloky odhadnu podle času.", "info")
+        self.log("Bloky zatím nejsou zveřejněné. Beru akce z Programu a bloky podle oficiálního programu školy.", "info")
         p.goto(self.base_url, wait_until="domcontentloaded")
         p.wait_for_timeout(2500)
         # Program se zobrazuje po částech, rozbalíme ho celý tlačítkem „Zobrazit další akce“.
@@ -259,8 +295,10 @@ class Bot:
             last = h
         raw = p.evaluate(JS_CATALOG)
         p.evaluate("window.scrollTo(0,0)")
-        items = guess_blocks(raw)
-        self.log(f"Načteno {len(items)} akcí z Programu.", "ok" if items else "warn")
+        items = guess_blocks(raw) if "/demo/" in self.base_url else merge_with_school(raw)
+        n_web = len({i["title"] for i in items if i.get("source") != "skola"})
+        self.log(f"Načteno {n_web} akcí z Programu, doplněno o bloky z programu školy ({len(items)} termínů).",
+                 "ok" if items else "warn")
         return items
 
     # -- bloková rezervace (/samet) ------------------------------------------

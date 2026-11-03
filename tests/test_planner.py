@@ -49,3 +49,25 @@ def test_prefer_double():
     plan = {"A": ["Básně"], "B": ["Hlasy"], "AB": ["Film"], "C": ["Stávka"], "D": ["Charta"]}
     picks, _ = planner.best_program(OPTS, plan, {"p1": "double", "p2": "single"}, False)
     assert titles(picks) == ["Film", "Stávka", "Charta"]
+
+
+def test_fuzzy_title_match():
+    opts = [opt(1, "A", "Básnicky bydlí člověk…?"), opt(2, "B", "Hlasy"), opt(3, "C", "C"), opt(4, "D", "D")]
+    plan = {"A": ["Básnicky bydlí člověk...?"], "B": ["Hlasy"], "C": ["C"], "D": ["D"]}
+    picks, _ = planner.best_program(opts, plan, PREF, False, fill_any=False)
+    assert picks and picks[0]["id"] == "1"
+
+
+def test_merge_with_school():
+    from samet_booker.bot import merge_with_school
+    raw = [
+        {"title": "Moje osobní bezpečnost", "start": "2026-11-11T08:00", "duration": 45, "location": "3.A"},
+        {"title": "Kuciak: Vražda novináře (film)", "start": "2026-11-11T08:00", "duration": 90, "location": "HUVu"},
+        {"title": "Neznámá akce", "start": "2026-11-11T09:00", "duration": 45, "location": "X"},
+    ]
+    items = merge_with_school(raw)
+    blocks = {i["blok"] for i in items if i["title"] == "Moje osobní bezpečnost"}
+    assert blocks == {"A", "B", "C", "D"}
+    assert any(i["title"] == "Kuciak: Vražda novináře (film)" and i["blok"] == "AB" for i in items)
+    assert any(i["title"] == "Neznámá akce" and i["blok"] == "B" for i in items)
+    assert any(i["title"] == "Tvoříme Evropu" and i["blok"] == "ODPO" for i in items)
